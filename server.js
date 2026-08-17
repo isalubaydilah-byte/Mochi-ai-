@@ -1,0 +1,10 @@
+import "dotenv/config";
+import express from "express";
+import OpenAI from "openai";
+const app=express(); const port=process.env.PORT||10000;
+const client=new OpenAI({apiKey:process.env.OPENAI_API_KEY});
+app.use(express.json({limit:"512kb"}));
+app.get("/",(_,r)=>r.json({name:"Mochi AI",version:"2.0",status:"online"}));
+app.get("/health",(_,r)=>r.json({ok:true,service:"mochi-ai",version:"2.0"}));
+app.post("/api/chat",async(req,res)=>{try{const message=typeof req.body?.message==="string"?req.body.message.trim():"";const memory=Array.isArray(req.body?.memory)?req.body.memory.filter(x=>typeof x==="string").slice(0,30):[];if(!message)return res.status(400).json({error:"Pesan kosong."});if(!process.env.OPENAI_API_KEY)return res.status(503).json({error:"OPENAI_API_KEY belum diatur."});const response=await client.responses.create({model:"gpt-5.6",tools:[{type:"web_search_preview"}],instructions:`Kamu adalah Mochi, AI pribadi berbahasa Indonesia. Bantu pengguna dengan jelas, jujur, dan praktis. Gunakan web research jika informasi membutuhkan data terbaru atau verifikasi. Prioritaskan sumber resmi dan terpercaya. Jangan mengarang fakta atau referensi. Jika melakukan web research, sertakan sumber yang tersedia. Bedakan fakta, perkiraan, dan opini. Memori hanya konteks pribadi, bukan bukti fakta publik. Jangan melakukan tindakan penting tanpa persetujuan pengguna.\nMEMORI:\n${memory.map(x=>"- "+x).join("\n")}`,input:message});res.json({answer:response.output_text||"Mochi tidak menghasilkan jawaban."});}catch(e){console.error(e);res.status(500).json({error:"Mochi mengalami kesalahan."});}});
+app.listen(port,"0.0.0.0",()=>console.log(`Mochi backend listening on ${port}`));
